@@ -1,5 +1,6 @@
 #include <drm-test-output.h>
 #include <drm-test-utils.h>
+#include <libdrm/drm_mode.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
 
@@ -34,14 +35,21 @@ struct drm_mode_card_res get_resources (int dri_fd) {
   return res;
 }
 
+void free_card_resources (struct drm_mode_card_res card_res) {
+  // The assumption is that these are allocated in get_resources.
+  free((u_int64_t*)card_res.connector_id_ptr);
+  free((u_int64_t*)card_res.crtc_id_ptr);
+  free((u_int64_t*)card_res.fb_id_ptr);
+  free((u_int64_t*)card_res.encoder_id_ptr);
+}
+
 /*Populates a list with outputs retrieved through DRM ioctls.
 * Returns the number of outputs fetched in the process.
 */
-int get_outputs (int dri_fd, list_link * list_head) {
+int get_outputs (int dri_fd, struct drm_mode_card_res card_res, list_link * list_head) {
   list_link * tail = list_head;
 
   // Get the card resources.
-  struct drm_mode_card_res card_res = get_resources(dri_fd);
   u_int32_t connector_count = card_res.count_connectors;
   u_int64_t * connectors = (u_int64_t*) card_res.connector_id_ptr;
   

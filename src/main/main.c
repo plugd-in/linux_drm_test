@@ -23,7 +23,9 @@ int main (int argc, char ** argv) {
   // Acquire control of the direct rendering infra device.
   ioctl(dri_fd, DRM_IOCTL_SET_MASTER, 0);
 
-  int connection_count = get_outputs(dri_fd, &connectors);
+  struct drm_mode_card_res card_res = get_resources(dri_fd);
+
+  int connection_count = get_outputs(dri_fd, card_res, &connectors);
 
   filter_useful_outputs(&connectors, &active_connectors);
 
@@ -134,11 +136,8 @@ int main (int argc, char ** argv) {
 
   // Clean up.
 
+  free_card_resources(card_res);
 
-  // free(res_fb_buf);
-  // free(res_crtc_buf);
-  // free(res_conn_buf);
-  // free(res_enc_buf);
   tail = &connectors;
   while ( ( tail = tail->next ) != NULL ) {
     struct output * connector = link_container_of(tail, connector, connector_link);

@@ -29,10 +29,10 @@ struct output {
 
 struct drm_mode_card_res get_resources (int dri_fd);
 
-// Calls get_resources to get card resources. 
-// Consider moving the call outside of the function.
-int get_outputs (int dri_fd, list_link * list_head);
+int get_outputs (int dri_fd, struct drm_mode_card_res card_res, list_link * list_head);
 
 list_link * filter_useful_outputs (list_link * outputs, list_link * useful_outputs);
+
+void free_card_resources (struct drm_mode_card_res card_res);
 
 #endif
