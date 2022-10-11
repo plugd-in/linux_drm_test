@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 
-project(wayland_test C)
+project(drm_test C)
 
 set(CMAKE_C_STANDARD 11)
 
