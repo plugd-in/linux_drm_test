@@ -31,6 +31,7 @@ struct connector_resource {
   void * fb; // The connector associated with the connector.
   long fb_w;
   long fb_h;
+  unsigned long long fb_size;
 
   u_int32_t pitch;
 
@@ -73,6 +74,8 @@ int main (int argc, char ** argv) {
   res_crtc_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_crtcs);
   res_conn_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_connectors);
   res_enc_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_encoders);
+
+
 
   // We need some space for later connector queries.
   connectors = (struct drm_mode_get_connector *) malloc(sizeof(struct drm_mode_get_connector)*res.count_connectors);
@@ -199,6 +202,7 @@ int main (int argc, char ** argv) {
     ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &crtc);
 
     connector->pitch = create_dumb.pitch;
+    connector->fb_size = create_dumb.size;
 
     tail = tail->next;
   }
@@ -223,8 +227,8 @@ int main (int argc, char ** argv) {
     connector->cr = cairo_create(connector->surface);
 
 
-    cairo_rectangle (connector->cr, 0, 0, 200, 200);
-    cairo_set_source_rgb (connector->cr, 100, 100, 100);
+    cairo_rectangle (connector->cr, 100, 100, 200, 200);
+    cairo_set_source_rgb (connector->cr, 100, 0, 100);
     cairo_fill (connector->cr);
     sleep(5);
     tail = tail->next;
@@ -249,7 +253,8 @@ int main (int argc, char ** argv) {
     struct connector_resource * connector = link_container_of(tail, connector, link);
     tail = tail->next;
     cairo_destroy(connector->cr);
-    cairo_surface_destroy(connector->fb);
+    cairo_surface_destroy(connector->surface);
+    munmap(connector->fb, connector->fb_size);
     free(connector);
   }
 
