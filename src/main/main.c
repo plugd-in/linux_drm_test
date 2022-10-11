@@ -8,56 +8,14 @@
 #include <fcntl.h> // File control operations
 #include <stddef.h>
 #include <sys/mman.h>
-#include <cairo/cairo.h>
-
-
-#define link_container_of(ptr, sample, member) \
-	(__typeof__(sample))((char *)(ptr) - \
-			     offsetof(__typeof__(*sample), member))
-
-
-struct list_link;
-
-struct list_link {
-  struct list_link * next;
-};
-
-struct connector_resource {
-  // The connector details filled in by ioctl call.
-  struct drm_mode_get_connector * connector;
-
-  struct drm_mode_get_encoder encoder;
-
-  void * fb; // The connector associated with the connector.
-  long fb_w;
-  long fb_h;
-  unsigned long long fb_size;
-
-  u_int32_t pitch;
-
-  cairo_surface_t * surface;
-  cairo_t * cr;
-
-  u_int64_t connector_id;
-
-  struct list_link link;
-};
-
-
+#include <cairo.h>
+#include <drm-test-utils.h>
+#include <drm-test-output.h>
 
 int main (int argc, char ** argv) {
   int dri_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
   
-  // Render/device resource information.
-  // Better to be safe with dynamic allocation.
-  u_int64_t *res_fb_buf,
-    *res_crtc_buf,
-    *res_conn_buf,
-    *res_enc_buf;
-
-  struct drm_mode_card_res res = {0};
-
-  struct drm_mode_get_connector * connectors;
+  struct list_link connectors = {0};
 
   struct list_link active_connectors = {0};
 
@@ -65,77 +23,17 @@ int main (int argc, char ** argv) {
   // Acquire control of the direct rendering infra device.
   ioctl(dri_fd, DRM_IOCTL_SET_MASTER, 0);
 
+  int connection_count = get_outputs(dri_fd, &connectors);
 
-  // This call should get the connector count.
-  ioctl(dri_fd, DRM_IOCTL_MODE_GETRESOURCES, &res);
- 
-  // Allocate device identifier arrays now that we have a count.
-  res_fb_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_fbs);
-  res_crtc_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_crtcs);
-  res_conn_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_connectors);
-  res_enc_buf = (u_int64_t*) malloc(sizeof(u_int64_t)*res.count_encoders);
+  filter_useful_outputs(&connectors, &active_connectors);
 
-
-
-  // We need some space for later connector queries.
-  connectors = (struct drm_mode_get_connector *) malloc(sizeof(struct drm_mode_get_connector)*res.count_connectors);
-
-  // Add the arrays to card res struct.
-  res.fb_id_ptr = (u_int64_t) res_fb_buf;
-  res.crtc_id_ptr = (u_int64_t) res_crtc_buf;
-  res.connector_id_ptr = (u_int64_t) res_conn_buf;
-  res.encoder_id_ptr = (u_int64_t) res_enc_buf;
-  // This second call will get resource IDs.
-  ioctl(dri_fd, DRM_IOCTL_MODE_GETRESOURCES, &res);
-
-  struct list_link * tail = &active_connectors;
-
-  // Get card information (HDMI, VGA, etc.).
-  // Loop through connectors. Remember useful connectives (active_conn...)
-  for ( int i = 0; i < res.count_connectors; i++ ) {
-    // Need to follow same structure, because we need modes.
-    struct drm_mode_get_connector * connector = &connectors[i];
-    connector->connector_id = res_conn_buf[i];
-    // Fill in counts.
-    ioctl(dri_fd, DRM_IOCTL_MODE_GETCONNECTOR, connector);
-
-
-    // Allocate space for connector information.
-    // We might not need the connector, depending on the counts.
-    // But, it won't hurt to grab the connector info anyways.
-    connector->modes_ptr = (u_int64_t) malloc(sizeof(struct drm_mode_modeinfo)*connector->count_modes);
-    connector->props_ptr = (u_int64_t) malloc(sizeof(u_int64_t)*connector->count_props);
-    connector->prop_values_ptr = (u_int64_t) malloc(sizeof(u_int64_t)*connector->count_props);
-    connector->encoders_ptr = (u_int64_t) malloc(sizeof(u_int64_t)*connector->count_encoders);
-
-    ioctl(dri_fd, DRM_IOCTL_MODE_GETCONNECTOR, connector);
-
-    // Skip active connection adding if inactive.
-    if (
-      connector->count_encoders < 1 ||
-      connector->count_modes < 1 ||
-      !connector->encoder_id ||
-      !connector->connection
-    ) continue;
-
-    // Fill in the active connector info.
-    struct connector_resource * conn_resource
-      = (struct connector_resource *) malloc(sizeof(struct connector_resource));
-
-
-    conn_resource->connector = connector;
-    conn_resource->connector_id = res_conn_buf[i];
-    tail->next = &conn_resource->link;
-    tail = &conn_resource->link;
-  }
-
-
+  struct list_link * tail;
 
   // Start handling active connections.
   // Reuse the tail ptr defined above.
   tail = active_connectors.next;
   while ( tail != NULL ) {
-    struct connector_resource * connector = link_container_of(tail, connector, link);
+    struct output * connector = link_container_of(tail, connector, useful_link);
 
 
     // Using first mode. TODO: Allow later configuartion of modes.
@@ -214,7 +112,7 @@ int main (int argc, char ** argv) {
 
   tail = active_connectors.next;
   while ( tail != NULL ) {
-    struct connector_resource * connector = link_container_of(tail, connector, link);
+    struct output * connector = link_container_of(tail, connector, useful_link);
 
     connector->surface = cairo_image_surface_create_for_data(
       connector->fb,
@@ -237,20 +135,22 @@ int main (int argc, char ** argv) {
   // Clean up.
 
 
-  free(res_fb_buf);
-  free(res_crtc_buf);
-  free(res_conn_buf);
-  free(res_enc_buf);
-  for ( int i = 0; i < res.count_connectors; i++ ) {
-    free((void*) connectors[i].encoders_ptr);
-    free((void*) connectors[i].props_ptr);
-    free((void*) connectors[i].prop_values_ptr);
-    free((void*) connectors[i].modes_ptr);
+  // free(res_fb_buf);
+  // free(res_crtc_buf);
+  // free(res_conn_buf);
+  // free(res_enc_buf);
+  tail = &connectors;
+  while ( ( tail = tail->next ) != NULL ) {
+    struct output * connector = link_container_of(tail, connector, connector_link);
+    free((void*) connector->connector->encoders_ptr);
+    free((void*) connector->connector->props_ptr);
+    free((void*) connector->connector->prop_values_ptr);
+    free((void*) connector->connector->modes_ptr);
   }
-  free(connectors);
+  // free(connectors);
   tail = active_connectors.next;
   while ( tail != NULL ) {
-    struct connector_resource * connector = link_container_of(tail, connector, link);
+    struct output * connector = link_container_of(tail, connector, useful_link);
     tail = tail->next;
     cairo_destroy(connector->cr);
     cairo_surface_destroy(connector->surface);
