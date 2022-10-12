@@ -1,5 +1,6 @@
 #include <drm-test-output.h>
 #include <drm-test-utils.h>
+#include <drm-test-draw.h>
 #include <libdrm/drm_mode.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
@@ -7,6 +8,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 struct drm_mode_card_res get_resources (int dri_fd) {
   // Where we'll store the card query results.
@@ -72,7 +74,7 @@ int get_outputs (int dri_fd, struct drm_mode_card_res card_res, list_link * list
 
     conn->count_props = 0;
     conn->count_encoders = 0;
-    conn->count_modes = 1;
+    conn->count_modes = 0;
     conn->modes_ptr = (u_int64_t) &temp;
     
     // Fill in counts.
@@ -151,4 +153,42 @@ int output_mode_set (struct output * output, struct drm_mode_modeinfo * mode) {
   }
   // Failure.
   return 1;
+}
+
+int restore_buffer (int dri_fd, struct output * output) {
+    output->original_crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
+    output->original_crtc.count_connectors = 1;
+    output->original_crtc.mode_valid = 1;
+    if ( ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &output->original_crtc) >= 0)
+      return 0;
+    return 1;
+}
+
+/**
+* Applies the mapped "dumb" buffer stored in output->framebuffer
+* @returns 0 on success, 1 on failure. Check errno for more info.
+*/
+int apply_buffer (int dri_fd, struct output * output) {
+  // Get buffer encoder.
+  output->encoder.encoder_id = output->connector->encoder_id;
+  if ( ioctl(dri_fd, DRM_IOCTL_MODE_GETENCODER, &output->encoder) < 0 )
+    return 1;
+
+
+  struct drm_mode_crtc crtc = {0};
+  crtc.crtc_id = output->encoder.crtc_id;
+
+  if ( ioctl(dri_fd, DRM_IOCTL_MODE_GETCRTC, &crtc) < 0 )
+    return 1;
+
+  output->original_crtc = crtc;
+
+  crtc.fb_id = output->framebuffer.fb_id;
+  crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
+  crtc.count_connectors = 1;
+  crtc.mode = *output->mode;
+  crtc.mode_valid = 1;
+  if ( ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &crtc) < 0 )
+    return 1;
+  return 0;
 }

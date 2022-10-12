@@ -5,8 +5,34 @@
 #include <libdrm/drm.h>
 #include <cairo.h>
 #include <drm-test-utils.h>
-#include <drm-test-output.h>
+
+struct output;
+
+typedef struct frame_descriptor {
+    void * fb;
+    long fb_h;
+    long fb_w;
+
+    u_int32_t fb_id;
+    unsigned long long fb_size; 
+
+    u_int32_t pitch;
+} frame_descriptor;
+
+typedef struct draw_context {
+    struct output * output;
+
+    // This is redundant, given there will be a frame_descriptor.
+    // Equivalent to &output->framebuffer.
+    struct frame_descriptor * framebuffer;
+    
+    cairo_surface_t * surface;
+    cairo_t * cr;
+
+} draw_context;
 
 int prepare_buffer ( int dri_fd, struct output * output );
+
+struct draw_context get_draw_context ( struct output * output );
 
 #endif

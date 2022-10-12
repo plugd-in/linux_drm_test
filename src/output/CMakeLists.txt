@@ -18,7 +18,7 @@ target_include_directories(
 )
 
  target_link_Libraries(
-    drm-test-output drm-test-utils PkgConfig::drm-test-output
+    drm-test-output drm-test-utils drm-test-draw PkgConfig::drm-test-output
 )
 
 # target_compile_options(drm-test-output PUBLIC -DWLR_USE_UNSTABLE)

@@ -13,14 +13,6 @@
 #include <drm-test-output.h>
 #include <drm-test-draw.h>
 
-int restore_output (int dri_fd, struct output * output) {
-    output->original_crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
-    output->original_crtc.count_connectors = 1;
-    output->original_crtc.mode_valid = 1;
-    if ( ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &output->original_crtc) >= 0)
-      return 0;
-    return 1;
-}
 
 int main (int argc, char ** argv) {
   int dri_fd = open("/dev/dri/card0", O_RDWR );
@@ -40,35 +32,40 @@ int main (int argc, char ** argv) {
   filter_useful_outputs(&connectors, &active_connectors);
 
   struct list_link * tail;
+  struct list_link * last_tail;
 
   // Start handling active connections.
   // Reuse the tail ptr defined above.
+
   tail = active_connectors.next;
+  last_tail = &active_connectors;
   while ( tail != NULL ) {
     struct output * output = link_container_of(tail, output, useful_link);
 
-    output_mode_set(output, (struct drm_mode_modeinfo *) output->connector->modes_ptr);
+    char err = 0;
 
-    prepare_buffer(dri_fd, output);
+    if ( output_mode_set(output, (struct drm_mode_modeinfo *) output->connector->modes_ptr) ) { 
+      perror("Error setting output mode: ");
+      err = 1;
+    }
 
-    // Get buffer encoder.
-    output->encoder.encoder_id = output->connector->encoder_id;
-    ioctl(dri_fd, DRM_IOCTL_MODE_GETENCODER, &output->encoder);
+    if ( prepare_buffer(dri_fd, output) ) {
+      perror("Error creating/mapping dumb buffer: ");
+      err = 1;
+    }
 
+    if ( apply_buffer(dri_fd, output) ) {
+      perror("Error setting CRTC buffer: ");
+      err = 1;
+    }
 
-    struct drm_mode_crtc crtc = {0};
-    crtc.crtc_id = output->encoder.crtc_id;
-    
-    ioctl(dri_fd, DRM_IOCTL_MODE_GETCRTC, &crtc);
+    // For now, cut out active connections that
+    // Throw an error.
+    // TODO: Cleanup the faulty connection.
+    // Leaving a mess behind as it is.
+    if ( err ) last_tail->next = tail->next;
 
-    output->original_crtc = crtc;
-
-    crtc.fb_id = output->fb_id;
-    crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
-    crtc.count_connectors = 1;
-    crtc.mode = *output->mode;
-    crtc.mode_valid = 1;
-    ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &crtc);
+    last_tail = tail;
 
     tail = tail->next;
   }
@@ -83,11 +80,11 @@ int main (int argc, char ** argv) {
     struct output * connector = link_container_of(tail, connector, useful_link);
 
     connector->surface = cairo_image_surface_create_for_data(
-      connector->fb,
+      connector->framebuffer.fb,
       CAIRO_FORMAT_ARGB32,
-      connector->fb_w,
-      connector->fb_h,
-      connector->pitch
+      connector->framebuffer.fb_w,
+      connector->framebuffer.fb_h,
+      connector->framebuffer.pitch
     );
 
     connector->cr = cairo_create(connector->surface);
@@ -106,7 +103,7 @@ int main (int argc, char ** argv) {
     tail = &active_connectors;
     while ( ( tail = tail->next ) != NULL ) {
       struct output * connector = link_container_of(tail, connector, useful_link);
-      restore_output(dri_fd, connector);
+      restore_buffer(dri_fd, connector);
     }
     ioctl(dri_fd, DRM_IOCTL_DROP_MASTER, 0);
   }
@@ -132,7 +129,7 @@ int main (int argc, char ** argv) {
 
     cairo_destroy(connector->cr);
     cairo_surface_destroy(connector->surface);
-    munmap(connector->fb, connector->fb_size);
+    munmap(connector->framebuffer.fb, connector->framebuffer.fb_size);
 
     if (ioctl(dri_fd, DRM_IOCTL_GEM_CLOSE, &gem_close) < 0)
       fprintf(stdout, "WARN: Failed closing GEM handle.\n");

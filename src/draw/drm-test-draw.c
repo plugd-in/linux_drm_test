@@ -43,14 +43,18 @@ int prepare_buffer ( int dri_fd, struct output * output ) {
   map_dumb.handle = create_dumb.handle;
   if ( ioctl(dri_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb) < 0)
     return 1;
+
+
+  output->framebuffer.fb = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, dri_fd, map_dumb.offset);
+  output->framebuffer.fb_h = create_dumb.height;
+  output->framebuffer.fb_w = create_dumb.width;
+  output->framebuffer.fb_size = create_dumb.size;
+  output->framebuffer.fb_id = cmd_dumb.fb_id;
+  output->framebuffer.pitch = cmd_dumb.pitch;
   
-  output->fb = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, dri_fd, map_dumb.offset);
-  output->fb_h = create_dumb.height;
-  output->fb_w = create_dumb.width;
-  output->fb_size = create_dumb.size;
-  output->fb_id = cmd_dumb.fb_id;
-  output->pitch = cmd_dumb.pitch;
+
   output->handle = create_dumb.handle;
 
-  return 1;
+  return 0;
 }
+
