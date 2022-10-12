@@ -105,11 +105,11 @@ int main (int argc, char ** argv) {
   // Clean up.
 
 
-  // Restore output.
   if ( !ioctl(dri_fd, DRM_IOCTL_SET_MASTER, 0) ) {
     tail = &active_connectors;
     while ( ( tail = tail->next ) != NULL ) {
       struct output * connector = link_container_of(tail, connector, useful_link);
+      restore_output(dri_fd, connector);
     }
     ioctl(dri_fd, DRM_IOCTL_DROP_MASTER, 0);
   }
