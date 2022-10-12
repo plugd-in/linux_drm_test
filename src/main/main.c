@@ -13,6 +13,15 @@
 #include <drm-test-output.h>
 #include <drm-test-draw.h>
 
+int restore_output (int dri_fd, struct output * output) {
+    output->original_crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
+    output->original_crtc.count_connectors = 1;
+    output->original_crtc.mode_valid = 1;
+    if ( ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &output->original_crtc))
+      return 0;
+    return 1;
+}
+
 int main (int argc, char ** argv) {
   int dri_fd = open("/dev/dri/card0", O_RDWR );
   
@@ -52,6 +61,10 @@ int main (int argc, char ** argv) {
     
     ioctl(dri_fd, DRM_IOCTL_MODE_GETCRTC, &crtc);
 
+    printf("M1: %d %d %s\n", crtc.fb_id, output->fb_id, crtc.mode.name);
+
+    output->original_crtc = crtc;
+
     crtc.fb_id = output->fb_id;
     crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
     crtc.count_connectors = 1;
@@ -90,6 +103,18 @@ int main (int argc, char ** argv) {
   }
 
   // Clean up.
+
+
+  // Restore output.
+  if ( !ioctl(dri_fd, DRM_IOCTL_SET_MASTER, 0) ) {
+    tail = &active_connectors;
+    while ( ( tail = tail->next ) != NULL ) {
+      struct output * connector = link_container_of(tail, connector, useful_link);
+    }
+    ioctl(dri_fd, DRM_IOCTL_DROP_MASTER, 0);
+  }
+
+
 
   free_card_resources(card_res);
 

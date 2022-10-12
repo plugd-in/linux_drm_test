@@ -31,6 +31,8 @@ struct output {
 
   struct list_link connector_link;
   struct list_link useful_link;
+
+  struct drm_mode_crtc original_crtc;
 };
 
 
