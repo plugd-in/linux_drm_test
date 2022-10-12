@@ -12,7 +12,7 @@ pkg_check_modules(deps REQUIRED IMPORTED_TARGET cairo )
 add_executable(drm_test main.c)
 
 target_link_Libraries(drm_test
-    PRIVATE drm-test-utils drm-test-output PkgConfig::deps
+    PRIVATE drm-test-utils drm-test-output drm-test-draw PkgConfig::deps
 )
 
 # target_compile_options(drm PRIVATE -DWLR_USE_UNSTABLE)

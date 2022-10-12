@@ -43,8 +43,9 @@ void free_card_resources (struct drm_mode_card_res card_res) {
   free((u_int64_t*)card_res.encoder_id_ptr);
 }
 
-/*Populates a list with outputs retrieved through DRM ioctls.
-* Returns the number of outputs fetched in the process.
+/**
+* Populates a list with outputs retrieved through DRM ioctls.
+* @returns the number of outputs fetched in the process.
 */
 int get_outputs (int dri_fd, struct drm_mode_card_res card_res, list_link * list_head) {
   list_link * tail = list_head;
@@ -84,9 +85,11 @@ int get_outputs (int dri_fd, struct drm_mode_card_res card_res, list_link * list
   return card_res.count_connectors;
 }
 
-/*Adds the useful outputs (has a mode and encoder) to the given list.
-* If useful_outputs is NULL, a new list is allocated.
-* Returns the pointer to the useful outputs list head.
+/**
+* Adds the useful outputs (has a mode and encoder) to the given list.
+* @outputs: The list of outputs to check.
+* @useful_outputs: Adds the useful ouputs to this list. If NULL, allocate a new list.
+* @returns the pointer to the useful outputs list head.
 */
 list_link * filter_useful_outputs (list_link * outputs, list_link * useful_outputs) {
     if ( useful_outputs == NULL )
@@ -109,4 +112,28 @@ list_link * filter_useful_outputs (list_link * outputs, list_link * useful_outpu
     }
 
     return useful_outputs;
+}
+
+/**
+* Sets the output's display mode.
+* @output: The output for which to set the display mode.
+* @mode: The display mode, from 'output->connector->modes_ptr', to set.
+* @return: 0 on success and 1 on failure.
+*/
+int output_mode_set (struct output * output, struct drm_mode_modeinfo * mode) {
+  // If the connector has the display mode...
+  if (
+    (u_int64_t) mode >= output->connector->modes_ptr
+    && (u_int64_t) mode < (
+      output->connector->modes_ptr +
+      sizeof(struct drm_mode_modeinfo) *
+      output->connector->count_modes
+    )
+  ) {
+    // Success.
+    output->mode = mode;
+    return 0;
+  }
+  // Failure.
+  return 1;
 }

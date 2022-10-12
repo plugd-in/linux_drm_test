@@ -11,9 +11,10 @@
 #include <cairo.h>
 #include <drm-test-utils.h>
 #include <drm-test-output.h>
+#include <drm-test-draw.h>
 
 int main (int argc, char ** argv) {
-  int dri_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
+  int dri_fd = open("/dev/dri/card0", O_RDWR );
   
   struct list_link connectors = {0};
 
@@ -25,7 +26,7 @@ int main (int argc, char ** argv) {
 
   struct drm_mode_card_res card_res = get_resources(dri_fd);
 
-  int connection_count = get_outputs(dri_fd, card_res, &connectors);
+  get_outputs(dri_fd, card_res, &connectors);
 
   filter_useful_outputs(&connectors, &active_connectors);
 
@@ -35,74 +36,28 @@ int main (int argc, char ** argv) {
   // Reuse the tail ptr defined above.
   tail = active_connectors.next;
   while ( tail != NULL ) {
-    struct output * connector = link_container_of(tail, connector, useful_link);
+    struct output * output = link_container_of(tail, output, useful_link);
 
+    output_mode_set(output, (struct drm_mode_modeinfo *) output->connector->modes_ptr);
 
-    // Using first mode. TODO: Allow later configuartion of modes.
-    struct drm_mode_modeinfo * mode = (struct drm_mode_modeinfo*) connector->connector->modes_ptr;
-    struct drm_mode_create_dumb create_dumb = {0};
-    struct drm_mode_map_dumb map_dumb = {0};
-    struct drm_mode_fb_cmd cmd_dumb={0};
-
-    // Framebuffer dimensions.
-    create_dumb.width = mode->hdisplay;
-    create_dumb.height = mode->vdisplay;
-
-    printf("M1 %d %d\n", create_dumb.width, create_dumb.height);
-
-    // I think bits per pixel. Might be wrong.
-    create_dumb.bpp = 32;
-
-    create_dumb.flags = 0;
-    create_dumb.pitch = 0;
-    create_dumb.size = 0;
-    create_dumb.handle = 0;
-
-    // Create the dumb frame buffer. Will give us a GrExMa handle.
-    ioctl(dri_fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_dumb);
-
-    cmd_dumb.width = create_dumb.width;
-    cmd_dumb.height = create_dumb.height;
-    cmd_dumb.bpp = create_dumb.bpp;
-    cmd_dumb.pitch = create_dumb.pitch;
-    cmd_dumb.depth = 24;
-    cmd_dumb.handle = create_dumb.handle;
-
-    // Add the "dumb" frame buffer. 
-    ioctl(dri_fd, DRM_IOCTL_MODE_ADDFB, &cmd_dumb);
-
-    printf("M1 %d\n", cmd_dumb.pitch);
-
-    // Map the frame buffer.
-    map_dumb.handle = create_dumb.handle;
-    ioctl(dri_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
-    printf("M1: %llu\n", map_dumb.offset);
-    connector->fb = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, dri_fd, map_dumb.offset);
-
-    connector->fb_h = create_dumb.height;
-    connector->fb_w = create_dumb.width;
+    prepare_buffer(dri_fd, output);
 
     // Get buffer encoder.
-    connector->encoder.encoder_id = connector->connector->encoder_id;
-    ioctl(dri_fd, DRM_IOCTL_MODE_GETENCODER, &connector->encoder);
+    output->encoder.encoder_id = output->connector->encoder_id;
+    ioctl(dri_fd, DRM_IOCTL_MODE_GETENCODER, &output->encoder);
 
-    printf("M4: %d\n", connector->encoder.encoder_type);
 
     struct drm_mode_crtc crtc = {0};
-    crtc.crtc_id = connector->encoder.crtc_id;
-
-    printf("M4: %d\n", connector->encoder.crtc_id);
+    crtc.crtc_id = output->encoder.crtc_id;
+    
     ioctl(dri_fd, DRM_IOCTL_MODE_GETCRTC, &crtc);
 
-    crtc.fb_id = cmd_dumb.fb_id;
-    crtc.set_connectors_ptr = (u_int64_t) &connector->connector->connector_id;
+    crtc.fb_id = output->fb_id;
+    crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
     crtc.count_connectors = 1;
-    crtc.mode = *mode;
+    crtc.mode = *output->mode;
     crtc.mode_valid = 1;
     ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &crtc);
-
-    connector->pitch = create_dumb.pitch;
-    connector->fb_size = create_dumb.size;
 
     tail = tail->next;
   }
@@ -150,12 +105,22 @@ int main (int argc, char ** argv) {
   tail = active_connectors.next;
   while ( tail != NULL ) {
     struct output * connector = link_container_of(tail, connector, useful_link);
+    struct drm_gem_close gem_close;
+    gem_close.handle = connector->handle;
+
     tail = tail->next;
     cairo_destroy(connector->cr);
     cairo_surface_destroy(connector->surface);
     munmap(connector->fb, connector->fb_size);
+
+    if (ioctl(dri_fd, DRM_IOCTL_GEM_CLOSE, &gem_close))
+      fprintf(stdout, "WARN: Failed closing GEM handle.\n");
+
     free(connector);
   }
+
+
+  close(dri_fd);
 
   return 0;
 }
