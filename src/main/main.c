@@ -17,7 +17,7 @@ int restore_output (int dri_fd, struct output * output) {
     output->original_crtc.set_connectors_ptr = (u_int64_t) &output->connector->connector_id;
     output->original_crtc.count_connectors = 1;
     output->original_crtc.mode_valid = 1;
-    if ( ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &output->original_crtc))
+    if ( ioctl(dri_fd, DRM_IOCTL_MODE_SETCRTC, &output->original_crtc) >= 0)
       return 0;
     return 1;
 }
@@ -61,8 +61,6 @@ int main (int argc, char ** argv) {
     
     ioctl(dri_fd, DRM_IOCTL_MODE_GETCRTC, &crtc);
 
-    printf("M1: %d %d %s\n", crtc.fb_id, output->fb_id, crtc.mode.name);
-
     output->original_crtc = crtc;
 
     crtc.fb_id = output->fb_id;
@@ -80,8 +78,8 @@ int main (int argc, char ** argv) {
 
   // Start drawing to the frame buffer.
 
-  tail = active_connectors.next;
-  while ( tail != NULL ) {
+  tail = &active_connectors;
+  while ( ( tail = tail->next ) != NULL ) {
     struct output * connector = link_container_of(tail, connector, useful_link);
 
     connector->surface = cairo_image_surface_create_for_data(
@@ -98,14 +96,13 @@ int main (int argc, char ** argv) {
     cairo_rectangle (connector->cr, 100, 100, 200, 200);
     cairo_set_source_rgb (connector->cr, 100, 0, 100);
     cairo_fill (connector->cr);
-    sleep(5);
-    tail = tail->next;
   }
+  sleep(5);
 
   // Clean up.
 
 
-  if ( !ioctl(dri_fd, DRM_IOCTL_SET_MASTER, 0) ) {
+  if ( ioctl(dri_fd, DRM_IOCTL_SET_MASTER, 0) >= 0 ) {
     tail = &active_connectors;
     while ( ( tail = tail->next ) != NULL ) {
       struct output * connector = link_container_of(tail, connector, useful_link);
@@ -133,13 +130,14 @@ int main (int argc, char ** argv) {
     struct drm_gem_close gem_close;
     gem_close.handle = connector->handle;
 
-    tail = tail->next;
     cairo_destroy(connector->cr);
     cairo_surface_destroy(connector->surface);
     munmap(connector->fb, connector->fb_size);
 
-    if (ioctl(dri_fd, DRM_IOCTL_GEM_CLOSE, &gem_close))
+    if (ioctl(dri_fd, DRM_IOCTL_GEM_CLOSE, &gem_close) < 0)
       fprintf(stdout, "WARN: Failed closing GEM handle.\n");
+
+    tail = tail->next;
 
     free(connector);
   }

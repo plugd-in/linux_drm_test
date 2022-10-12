@@ -26,7 +26,7 @@ int prepare_buffer ( int dri_fd, struct output * output ) {
   create_dumb.size = 0;
 
   // Create the "dumb" buffer.
-  if ( ioctl(dri_fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_dumb))
+  if ( ioctl(dri_fd, DRM_IOCTL_MODE_CREATE_DUMB, &create_dumb) < 0)
     return 1;
   
   // Prepare to add the dumb buffer.
@@ -36,12 +36,12 @@ int prepare_buffer ( int dri_fd, struct output * output ) {
   cmd_dumb.pitch = create_dumb.pitch;
   cmd_dumb.depth = 24;
   cmd_dumb.handle = create_dumb.handle;
-  if ( ioctl(dri_fd, DRM_IOCTL_MODE_ADDFB, &cmd_dumb))
+  if ( ioctl(dri_fd, DRM_IOCTL_MODE_ADDFB, &cmd_dumb) < 0)
     return 1;
 
   // Map the frame buffer. This will get us an offset from GEM.
   map_dumb.handle = create_dumb.handle;
-  if ( ioctl(dri_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb))
+  if ( ioctl(dri_fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb) < 0)
     return 1;
   
   output->fb = mmap(0, create_dumb.size, PROT_READ | PROT_WRITE, MAP_SHARED, dri_fd, map_dumb.offset);
