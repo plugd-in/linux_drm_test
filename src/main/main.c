@@ -15,6 +15,8 @@
 
 
 int main (int argc, char ** argv) {
+  // TODO: Argument processing and implement config file(s).
+  // Which card to use is device and situation-specific.
   int dri_fd = open("/dev/dri/card0", O_RDWR );
   
   struct list_link connectors = {0};
@@ -60,7 +62,7 @@ int main (int argc, char ** argv) {
     }
 
     // For now, cut out active connections that
-    // Throw an error.
+    // throw an error.
     // TODO: Cleanup the faulty connection.
     // Leaving a mess behind as it is.
     if ( err ) last_tail->next = tail->next;
