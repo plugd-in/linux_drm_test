@@ -1,9 +1,16 @@
 #ifndef __DRM_TEST_OUTPUT_H
 #define __DRM_TEST_OUTPUT_H
 
-#include <libdrm/drm_mode.h>
+
+#ifdef LIBDRM
+  #include <libdrm/drm.h>
+  #include <libdrm/drm_mode.h>
+#else
+  #include <drm/drm.h>
+  #include <drm/drm_mode.h>
+#endif
+
 #include <sys/types.h>
-#include <libdrm/drm.h>
 #include <cairo.h>
 #include <drm-test-utils.h>
 #include <drm-test-draw.h>
