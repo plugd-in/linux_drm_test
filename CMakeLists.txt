@@ -15,4 +15,11 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
   ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(libdrm QUIET libdrm)
+
+if( libdrm_FOUND EQUAL 1 )
+    add_definitions( -DLIBDRM )
+endif()
+
 add_subdirectory(src)

@@ -1,7 +1,13 @@
+#ifdef LIBDRM
+  #include <libdrm/drm.h>
+  #include <libdrm/drm_mode.h>
+#else
+  #include <drm/drm.h>
+  #include <drm/drm_mode.h>
+#endif
 #include <drm-test-output.h>
 #include <drm-test-utils.h>
 #include <drm-test-draw.h>
-#include <libdrm/drm_mode.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <stdio.h>

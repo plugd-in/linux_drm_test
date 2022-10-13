@@ -1,5 +1,10 @@
-#include <libdrm/drm.h>
-#include <libdrm/drm_mode.h>
+#ifdef LIBDRM
+  #include <libdrm/drm.h>
+  #include <libdrm/drm_mode.h>
+#else
+  #include <drm/drm.h>
+  #include <drm/drm_mode.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
