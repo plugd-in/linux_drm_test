@@ -1,7 +1,9 @@
 #include <drm-test-draw.h>
 #include <drm-test-output.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <cairo.h>
 
 /**
 * Pass an output for which a buffer should be prepared.
@@ -58,3 +60,34 @@ int prepare_buffer ( int dri_fd, struct output * output ) {
   return 0;
 }
 
+struct draw_context * create_draw_context(struct output *output) {
+  draw_context * ctx;
+
+  if ( output->ctx != NULL ) return NULL;
+
+  ctx = malloc(sizeof(draw_context));
+
+  ctx->surface = cairo_image_surface_create_for_data(
+    output->framebuffer.fb,
+    CAIRO_FORMAT_ARGB32,
+    output->framebuffer.fb_w,
+    output->framebuffer.fb_h,
+    output->framebuffer.pitch
+  );
+
+  ctx->cr = cairo_create(ctx->surface);
+
+  ctx->output = output;
+  ctx->framebuffer = &output->framebuffer;
+
+  output->ctx = ctx;
+
+  return ctx;
+}
+
+void destroy_context (struct draw_context * ctx) {
+  ctx->output->ctx = NULL;
+  cairo_destroy(ctx->cr);
+  cairo_surface_destroy(ctx->surface);
+  free(ctx);
+}

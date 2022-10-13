@@ -33,6 +33,8 @@ typedef struct draw_context {
 
 int prepare_buffer ( int dri_fd, struct output * output );
 
-struct draw_context get_draw_context ( struct output * output );
+struct draw_context * create_draw_context ( struct output * output );
+
+void destroy_context (struct draw_context * ctx);
 
 #endif

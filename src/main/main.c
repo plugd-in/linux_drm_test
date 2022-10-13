@@ -67,7 +67,7 @@ int main (int argc, char ** argv) {
     // Leaving a mess behind as it is.
     if ( err ) last_tail->next = tail->next;
 
-    last_tail = tail;
+    if ( !err ) last_tail = tail;
 
     tail = tail->next;
   }
@@ -79,22 +79,13 @@ int main (int argc, char ** argv) {
 
   tail = &active_connectors;
   while ( ( tail = tail->next ) != NULL ) {
-    struct output * connector = link_container_of(tail, connector, useful_link);
+    struct output * output = link_container_of(tail, output, useful_link);
 
-    connector->surface = cairo_image_surface_create_for_data(
-      connector->framebuffer.fb,
-      CAIRO_FORMAT_ARGB32,
-      connector->framebuffer.fb_w,
-      connector->framebuffer.fb_h,
-      connector->framebuffer.pitch
-    );
+    draw_context * ctx = create_draw_context(output);
 
-    connector->cr = cairo_create(connector->surface);
-
-
-    cairo_rectangle (connector->cr, 100, 100, 200, 200);
-    cairo_set_source_rgb (connector->cr, 100, 0, 100);
-    cairo_fill (connector->cr);
+    cairo_rectangle (ctx->cr, 100, 100, 200, 200);
+    cairo_set_source_rgb (ctx->cr, 100, 0, 100);
+    cairo_fill (ctx->cr);
   }
   sleep(5);
 
@@ -129,8 +120,8 @@ int main (int argc, char ** argv) {
     struct drm_gem_close gem_close;
     gem_close.handle = connector->handle;
 
-    cairo_destroy(connector->cr);
-    cairo_surface_destroy(connector->surface);
+    destroy_context(connector->ctx);
+
     munmap(connector->framebuffer.fb, connector->framebuffer.fb_size);
 
     if (ioctl(dri_fd, DRM_IOCTL_GEM_CLOSE, &gem_close) < 0)

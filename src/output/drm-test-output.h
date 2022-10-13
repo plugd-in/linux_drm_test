@@ -17,12 +17,10 @@ struct output {
   struct drm_mode_modeinfo * mode; // Useful to keep around and reference.
 
   struct frame_descriptor framebuffer;
+
+  struct draw_context * ctx;
   
   u_int32_t handle; // GEM handle.
-
-  // Will probably move to draw heading/structures later.
-  cairo_surface_t * surface;
-  cairo_t * cr;
 
   struct list_link connector_link;
   struct list_link useful_link;
