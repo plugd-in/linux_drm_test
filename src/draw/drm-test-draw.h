@@ -2,7 +2,6 @@
 #define __DRM_TEST_DRAW_H
 
 #include <sys/types.h>
-#include <libdrm/drm.h>
 #include <cairo.h>
 #include <drm-test-utils.h>
 
