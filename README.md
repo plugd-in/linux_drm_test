@@ -1,6 +1,6 @@
 # linux_drm_test
 
-A simple project for kernel mode setting and retrieving a framebuffer for drawing in Linux.
+A simple project for kernel mode setting and retrieving a framebuffer for drawing in Linux. The entire process from learning from scratch to creating and optimizing the project took just over 24 hours.
 
 ## Motivation  
 * Learn about the graphics ecosystem in Linux.
