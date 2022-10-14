@@ -10,7 +10,7 @@ A simple project for kernel mode setting and retrieving a framebuffer for drawin
 ## Process  
 
 ### First Source    
-Searching for a learning source, I stumbled upon [this guide](http://betteros.org/tut/graphics1.php#dumb) at [betterOS.org](betterOS.org). I followed the guide which went through the process of fetching graphics card resources (e.g. connectors), as well as the process of creating and mapping a framebuffer through kernel mode setting. The guide led me to a simple understanding of the process of getting a frame buffer to draw to.   
+Searching for a learning source, I stumbled upon [this guide](http://betteros.org/tut/graphics1.php#dumb) at [betterOS.org](http://betterOS.org). I followed the guide which went through the process of fetching graphics card resources (e.g. connectors), as well as the process of creating and mapping a framebuffer through kernel mode setting. The guide led me to a simple understanding of the process of getting a frame buffer to draw to.   
 
 ### Improvement  
 How I improved on what I learned from BetterOS's guide.
