@@ -45,3 +45,11 @@ For the most part, I've removed immediately apparent bugs. The project runs unde
 
 ## Future direction    
 I plan to use this project as a base to create my own login manager, which means I'll have to start learning input/interrupt handling.
+
+# License
+
+This project can be considered free to use for any purposes, without attribution. The redistribution and modification of this project is not restricted. The licensing of derivatives of this project is also unrestricted, including the potential use of closed-source licenses, with an exception for this project (the original repository) and the author of this project. The creator or this project reserves the rights to modify and distribute this project in any way, including in ways which might encroach on the licensing of derivatives, if the provision giving this project and the author special consideration were absent.
+
+# Disclaimer
+
+This software is provided as-is, without any warranty. Any damage to devices as a result of running this software is not the responsibility of the author.
